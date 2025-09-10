@@ -122,6 +122,26 @@ class CSVExporter:
         return output_path
     
     @staticmethod
+    def export_week_recap(df: pd.DataFrame, league_id: str, week: int) -> Path:
+        """Export week recap dataframe to CSV."""
+        if df.empty:
+            raise ValueError("No week recap data to export")
+        
+        filename = file_manager.week_recap_filename(league_id, week)
+        output_path = file_manager.get_output_path(filename)
+        
+        # Ensure output directory exists
+        file_manager.ensure_output_dir()
+        
+        # Export with consistent formatting
+        df.to_csv(output_path, index=False, encoding='utf-8')
+        
+        console.print(f"[green]✅ Week {week} recap exported: {output_path}[/green]")
+        console.print(f"[blue]📊 {len(df)} player rows exported[/blue]")
+        
+        return output_path
+    
+    @staticmethod
     def validate_dataframe(df: pd.DataFrame, required_columns: List[str]) -> None:
         """Validate that dataframe has required columns and data."""
         if df.empty:

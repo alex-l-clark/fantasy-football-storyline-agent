@@ -42,6 +42,10 @@ class FileManager:
         """Generate matchups CSV filename."""
         return f"matchups_{league_id}_week{week}.csv"
     
+    def week_recap_filename(self, league_id: str, week: int) -> str:
+        """Generate week recap CSV filename."""
+        return f"week_recap_{league_id}_week{week}.csv"
+    
     def ensure_output_dir(self) -> Path:
         """Ensure output directory exists and return path."""
         return self.config_manager.get_output_dir()

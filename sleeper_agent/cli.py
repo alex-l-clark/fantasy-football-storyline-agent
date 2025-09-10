@@ -1,6 +1,7 @@
 """Main CLI application for Sleeper Agent."""
 
 from typing import Optional
+from pathlib import Path
 import typer
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
@@ -11,6 +12,7 @@ from sleeper_agent.config import Config, ConfigManager
 from sleeper_agent.services.leagues import LeagueService
 from sleeper_agent.services.drafts import DraftService
 from sleeper_agent.services.matchups import MatchupsService
+from sleeper_agent.services.week_recap import WeekRecapService
 from sleeper_agent.io.csv_export import CSVExporter, RosterExportHelper
 
 app = typer.Typer(
@@ -98,12 +100,13 @@ class SleeperCLI:
         menu_table.add_row("1", "draft-recap - Export latest draft to CSV")
         menu_table.add_row("2", "team-preview - Export a team's roster to CSV")
         menu_table.add_row("3", "week-matchups - Export weekly matchups to CSV")
+        menu_table.add_row("4", "week-recap - Export player-level week recap to CSV")
         menu_table.add_row("q", "Quit")
         
         console.print(menu_table)
         console.print("="*50)
         
-        choice = Prompt.ask("\nSelect an option", choices=["1", "2", "3", "q"])
+        choice = Prompt.ask("\nSelect an option", choices=["1", "2", "3", "4", "q"])
         
         if choice == "1":
             return "draft-recap"
@@ -111,6 +114,8 @@ class SleeperCLI:
             return "team-preview"
         elif choice == "3":
             return "week-matchups"
+        elif choice == "4":
+            return "week-recap"
         elif choice == "q":
             return "quit"
         
@@ -326,6 +331,81 @@ class SleeperCLI:
         except Exception as e:
             console.print(f"[red]❌ Error during week matchups export: {e}[/red]")
     
+    def week_recap_flow(self) -> None:
+        """Handle week recap flow."""
+        console.print("\n[bold blue]📊 Week Recap[/bold blue]")
+        
+        try:
+            # Get week number from user
+            while True:
+                try:
+                    week_str = Prompt.ask("Enter NFL week number (1–18)")
+                    week = int(week_str)
+                    
+                    if 1 <= week <= 18:
+                        break
+                    else:
+                        console.print("[red]Week must be between 1 and 18[/red]")
+                        
+                except ValueError:
+                    console.print("[red]Please enter a valid number[/red]")
+            
+            console.print(f"[green]Selected week: {week}[/green]")
+            
+            # Initialize week recap service
+            week_recap_service = WeekRecapService(self.league_id)
+            
+            # Build week recap dataframe
+            console.print("[blue]Building player-level week recap data...[/blue]")
+            df = week_recap_service.build_week_recap_dataframe(week)
+            
+            if df.empty:
+                console.print("[red]❌ No week recap data found for this week[/red]")
+                return
+            
+            # Export to CSV
+            output_path = CSVExporter.export_week_recap(df, self.league_id, week)
+            
+            # Show sample of data
+            if len(df) > 0:
+                console.print(f"\n[bold]📋 Week {week} Player Performance (first 5 players):[/bold]")
+                sample_table = Table()
+                sample_table.add_column("Player", style="green")
+                sample_table.add_column("Team", style="blue")  
+                sample_table.add_column("Position", style="cyan")
+                sample_table.add_column("Fantasy Points", style="yellow")
+                sample_table.add_column("Matchup", style="white")
+                
+                for _, row in df.head(5).iterrows():
+                    team_name = row['side_display_name'] or row['side_username'] or f"Roster {row['side_roster_id']}"
+                    opp_name = row['opp_username'] or f"Roster {row['opp_roster_id']}" if row['opp_roster_id'] else "BYE"
+                    
+                    # Format fantasy points
+                    fantasy_points = f"{float(row['player_points']):.1f}" if row['player_points'] != "" else "N/A"
+                    
+                    # Format matchup info
+                    if opp_name == "BYE":
+                        matchup_info = f"{team_name} (BYE)"
+                    else:
+                        side_points = f"{float(row['side_total_points']):.1f}" if row['side_total_points'] != "" else "N/A"
+                        opp_points = f"{float(row['opp_total_points']):.1f}" if row['opp_total_points'] != "" else "N/A"
+                        matchup_info = f"{team_name} ({side_points}) vs {opp_name} ({opp_points})"
+                    
+                    sample_table.add_row(
+                        row['player_name'],
+                        row['nfl_team'] or "N/A",
+                        row['position'] or "N/A", 
+                        fantasy_points,
+                        matchup_info
+                    )
+                
+                console.print(sample_table)
+            
+            console.print(f"\n[bold green]✅ Week {week} recap exported to: {output_path}[/bold green]")
+            
+        except Exception as e:
+            console.print(f"[red]❌ Error during week recap export: {e}[/red]")
+    
     def run(self) -> None:
         """Run the main CLI application."""
         try:
@@ -344,6 +424,8 @@ class SleeperCLI:
                     self.team_preview_flow()
                 elif choice == "week-matchups":
                     self.week_matchups_flow()
+                elif choice == "week-recap":
+                    self.week_recap_flow()
                 elif choice == "quit":
                     console.print("[blue]👋 Goodbye![/blue]")
                     break
@@ -361,12 +443,17 @@ class SleeperCLI:
             console.print(f"[red]❌ Unexpected error: {e}[/red]")
 
 
-@app.command()
+@app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     league_id: Optional[str] = typer.Option(None, "--league-id", "-l", help="League ID to use")
 ) -> None:
     """Run the Sleeper Agent CLI."""
+    # If a subcommand is invoked, don't run the interactive mode
+    if ctx.invoked_subcommand is not None:
+        return
+    
     cli = SleeperCLI()
     
     # Override league ID if provided
@@ -375,6 +462,84 @@ def main(
         cli.config.league_id = league_id
     
     cli.run()
+
+
+@app.command("week-recap")
+def week_recap(
+    week: int = typer.Option(..., help="NFL week number (1–18)"),
+    outdir: Path = typer.Option("out", dir_okay=True, file_okay=False, help="Output directory"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
+    league_id: Optional[str] = typer.Option(None, "--league-id", "-l", help="League ID to use")
+) -> None:
+    """Export a player-level CSV recap for all matchups in the given week.
+    
+    Includes team totals, winners/losers, and each starter's fantasy points
+    when provided by Sleeper. Uses official endpoints only.
+    """
+    # Validate week range
+    if not (1 <= week <= 18):
+        console.print(f"[red]❌ Week must be between 1 and 18, got {week}[/red]")
+        raise typer.Exit(1)
+    
+    try:
+        # Setup configuration
+        config_manager = ConfigManager()
+        config = config_manager.load_config()
+        
+        # Determine league_id
+        target_league_id = league_id or config.league_id
+        
+        if not target_league_id:
+            console.print("[red]❌ No league ID provided. Use --league-id or run interactive mode first.[/red]")
+            raise typer.Exit(1)
+        
+        # Validate league
+        league_service = LeagueService(target_league_id)
+        is_valid, message = league_service.validate_league()
+        
+        if not is_valid:
+            console.print(f"[red]❌ {message}[/red]")
+            raise typer.Exit(1)
+        
+        if verbose:
+            console.print(f"[green]{message}[/green]")
+        
+        # Initialize week recap service
+        console.print(f"[blue]🏈 Generating week {week} recap for league {target_league_id}[/blue]")
+        week_recap_service = WeekRecapService(target_league_id)
+        
+        # Build week recap dataframe
+        df = week_recap_service.build_week_recap_dataframe(week)
+        
+        if df.empty:
+            console.print("[red]❌ No week recap data found for this week[/red]")
+            raise typer.Exit(1)
+        
+        # Ensure output directory exists
+        outdir.mkdir(parents=True, exist_ok=True)
+        
+        # Export to CSV
+        filename = f"week_recap_{target_league_id}_week{week}.csv"
+        output_path = outdir / filename
+        
+        df.to_csv(output_path, index=False, encoding='utf-8')
+        
+        console.print(f"[green]✅ Week {week} recap exported to: {output_path}[/green]")
+        console.print(f"[blue]📊 {len(df)} player rows exported[/blue]")
+        
+        if verbose and len(df) > 0:
+            unique_players = df['player_id'].nunique()
+            unique_matchups = df['matchup_id'].nunique()
+            players_with_points = df[df['player_points'] != ""].shape[0]
+            
+            console.print(f"[cyan]📈 Summary: {unique_players} unique players across {unique_matchups} matchups[/cyan]")
+            console.print(f"[cyan]🎯 {players_with_points}/{len(df)} players have fantasy points data[/cyan]")
+        
+    except Exception as e:
+        console.print(f"[red]❌ Error during week recap export: {e}[/red]")
+        if verbose:
+            raise
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":
