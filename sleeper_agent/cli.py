@@ -100,7 +100,7 @@ class SleeperCLI:
         menu_table.add_row("1", "draft-recap - Export latest draft to CSV")
         menu_table.add_row("2", "team-preview - Export a team's roster to CSV")
         menu_table.add_row("3", "week-matchups - Export weekly matchups to CSV")
-        menu_table.add_row("4", "week-recap - Export player-level week recap to CSV")
+        menu_table.add_row("4", "week-recap - Generate AI-powered groupchat recap")
         menu_table.add_row("q", "Quit")
         
         console.print(menu_table)
@@ -332,8 +332,8 @@ class SleeperCLI:
             console.print(f"[red]❌ Error during week matchups export: {e}[/red]")
     
     def week_recap_flow(self) -> None:
-        """Handle week recap flow."""
-        console.print("\n[bold blue]📊 Week Recap[/bold blue]")
+        """Handle AI-powered week recap flow."""
+        console.print("\n[bold blue]🤖 AI-Powered Week Recap[/bold blue]")
         
         try:
             # Get week number from user
@@ -352,59 +352,72 @@ class SleeperCLI:
             
             console.print(f"[green]Selected week: {week}[/green]")
             
-            # Initialize week recap service
-            week_recap_service = WeekRecapService(self.league_id)
-            
-            # Build week recap dataframe
-            console.print("[blue]Building player-level week recap data...[/blue]")
-            df = week_recap_service.build_week_recap_dataframe(week)
-            
-            if df.empty:
-                console.print("[red]❌ No week recap data found for this week[/red]")
+            # Check for required environment variables
+            from sleeper_agent.recap_orchestrator.config import RecapConfig
+            try:
+                RecapConfig.validate()
+            except ValueError as e:
+                console.print(f"[red]❌ Configuration error: {e}[/red]")
+                console.print("[yellow]💡 Please set the required environment variables:[/yellow]")
+                console.print("   • OPENAI_API_KEY")
+                console.print("   • PERPLEXITY_API_KEY")
                 return
             
-            # Export to CSV
-            output_path = CSVExporter.export_week_recap(df, self.league_id, week)
+            # Ask about forcing regeneration
+            force_regenerate = False
+            if Confirm.ask("Force regenerate all steps (ignore cached data)?", default=False):
+                force_regenerate = True
             
-            # Show sample of data
-            if len(df) > 0:
-                console.print(f"\n[bold]📋 Week {week} Player Performance (first 5 players):[/bold]")
-                sample_table = Table()
-                sample_table.add_column("Player", style="green")
-                sample_table.add_column("Team", style="blue")  
-                sample_table.add_column("Position", style="cyan")
-                sample_table.add_column("Fantasy Points", style="yellow")
-                sample_table.add_column("Matchup", style="white")
+            # Run the orchestrator
+            from sleeper_agent.recap_orchestrator.main import run_weekly_recap
+            
+            console.print("\n[bold blue]🚀 Starting AI Weekly Recap Pipeline...[/bold blue]")
+            console.print("[yellow]⏱️  This may take 2-5 minutes depending on API response times[/yellow]")
+            
+            try:
+                final_path = run_weekly_recap(
+                    week=week,
+                    league_id=self.league_id,
+                    force=force_regenerate,
+                    verbose=True
+                )
                 
-                for _, row in df.head(5).iterrows():
-                    team_name = row['side_display_name'] or row['side_username'] or f"Roster {row['side_roster_id']}"
-                    opp_name = row['opp_username'] or f"Roster {row['opp_roster_id']}" if row['opp_roster_id'] else "BYE"
-                    
-                    # Format fantasy points
-                    fantasy_points = f"{float(row['player_points']):.1f}" if row['player_points'] != "" else "N/A"
-                    
-                    # Format matchup info
-                    if opp_name == "BYE":
-                        matchup_info = f"{team_name} (BYE)"
-                    else:
-                        side_points = f"{float(row['side_total_points']):.1f}" if row['side_total_points'] != "" else "N/A"
-                        opp_points = f"{float(row['opp_total_points']):.1f}" if row['opp_total_points'] != "" else "N/A"
-                        matchup_info = f"{team_name} ({side_points}) vs {opp_name} ({opp_points})"
-                    
-                    sample_table.add_row(
-                        row['player_name'],
-                        row['nfl_team'] or "N/A",
-                        row['position'] or "N/A", 
-                        fantasy_points,
-                        matchup_info
-                    )
+                console.print(f"\n[bold green]🎉 AI Weekly Recap completed![/bold green]")
+                console.print(f"[green]📄 Generated recap: {final_path}[/green]")
                 
-                console.print(sample_table)
-            
-            console.print(f"\n[bold green]✅ Week {week} recap exported to: {output_path}[/bold green]")
-            
+                # Show file stats
+                if final_path.exists():
+                    with open(final_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        word_count = len(content.split())
+                        
+                    console.print(f"[cyan]📊 Final recap: {word_count} words[/cyan]")
+                    
+                    # Ask if user wants to see a preview
+                    if Confirm.ask("Show preview of the recap?", default=True):
+                        lines = content.splitlines()
+                        preview_lines = lines[:10] if len(lines) > 10 else lines
+                        
+                        console.print("\n[bold]📖 Preview:[/bold]")
+                        for line in preview_lines:
+                            console.print(f"  {line}")
+                        
+                        if len(lines) > 10:
+                            console.print(f"  ... ({len(lines) - 10} more lines)")
+                
+            except Exception as e:
+                console.print(f"[red]❌ AI recap generation failed: {e}[/red]")
+                
+                if "Configuration error" in str(e):
+                    console.print("\n[yellow]💡 Setup help:[/yellow]")
+                    console.print("1. Get an OpenAI API key: https://platform.openai.com/")
+                    console.print("2. Get a Perplexity API key: https://www.perplexity.ai/settings/api")
+                    console.print("3. Set environment variables:")
+                    console.print("   export OPENAI_API_KEY='your-key'")
+                    console.print("   export PERPLEXITY_API_KEY='your-key'")
+                    
         except Exception as e:
-            console.print(f"[red]❌ Error during week recap export: {e}[/red]")
+            console.print(f"[red]❌ Error during week recap: {e}[/red]")
     
     def run(self) -> None:
         """Run the main CLI application."""
@@ -467,14 +480,17 @@ def main(
 @app.command("week-recap")
 def week_recap(
     week: int = typer.Option(..., help="NFL week number (1–18)"),
+    season: Optional[int] = typer.Option(None, help="NFL season year (defaults to current)"),
     outdir: Path = typer.Option("out", dir_okay=True, file_okay=False, help="Output directory"),
+    force: bool = typer.Option(False, "--force", help="Force regeneration of all steps"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable verbose output"),
     league_id: Optional[str] = typer.Option(None, "--league-id", "-l", help="League ID to use")
 ) -> None:
-    """Export a player-level CSV recap for all matchups in the given week.
+    """Generate an AI-powered groupchat-ready weekly fantasy recap.
     
-    Includes team totals, winners/losers, and each starter's fantasy points
-    when provided by Sleeper. Uses official endpoints only.
+    Uses a 5-step pipeline to create comprehensive recaps with research,
+    analysis, and proper citations. Requires OPENAI_API_KEY and 
+    PERPLEXITY_API_KEY environment variables.
     """
     # Validate week range
     if not (1 <= week <= 18):
@@ -504,39 +520,62 @@ def week_recap(
         if verbose:
             console.print(f"[green]{message}[/green]")
         
-        # Initialize week recap service
-        console.print(f"[blue]🏈 Generating week {week} recap for league {target_league_id}[/blue]")
-        week_recap_service = WeekRecapService(target_league_id)
-        
-        # Build week recap dataframe
-        df = week_recap_service.build_week_recap_dataframe(week)
-        
-        if df.empty:
-            console.print("[red]❌ No week recap data found for this week[/red]")
+        # Check for required environment variables
+        from sleeper_agent.recap_orchestrator.config import RecapConfig
+        try:
+            RecapConfig.validate()
+        except ValueError as e:
+            console.print(f"[red]❌ Configuration error: {e}[/red]")
+            console.print("[yellow]💡 Please set the required environment variables:[/yellow]")
+            console.print("   • OPENAI_API_KEY")
+            console.print("   • PERPLEXITY_API_KEY")
             raise typer.Exit(1)
         
-        # Ensure output directory exists
-        outdir.mkdir(parents=True, exist_ok=True)
+        # Run the orchestrator
+        from sleeper_agent.recap_orchestrator.main import run_weekly_recap
         
-        # Export to CSV
-        filename = f"week_recap_{target_league_id}_week{week}.csv"
-        output_path = outdir / filename
+        console.print(f"\n[bold blue]🚀 Generating AI Weekly Recap for Week {week}[/bold blue]")
+        if verbose:
+            console.print("[yellow]⏱️  This may take 2-5 minutes depending on API response times[/yellow]")
         
-        df.to_csv(output_path, index=False, encoding='utf-8')
-        
-        console.print(f"[green]✅ Week {week} recap exported to: {output_path}[/green]")
-        console.print(f"[blue]📊 {len(df)} player rows exported[/blue]")
-        
-        if verbose and len(df) > 0:
-            unique_players = df['player_id'].nunique()
-            unique_matchups = df['matchup_id'].nunique()
-            players_with_points = df[df['player_points'] != ""].shape[0]
+        try:
+            final_path = run_weekly_recap(
+                week=week,
+                season=season,
+                league_id=target_league_id,
+                output_dir=outdir,
+                force=force,
+                verbose=verbose
+            )
             
-            console.print(f"[cyan]📈 Summary: {unique_players} unique players across {unique_matchups} matchups[/cyan]")
-            console.print(f"[cyan]🎯 {players_with_points}/{len(df)} players have fantasy points data[/cyan]")
+            console.print(f"\n[bold green]🎉 AI Weekly Recap completed![/bold green]")
+            console.print(f"[green]📄 Generated recap: {final_path}[/green]")
+            
+            # Show file stats
+            if final_path.exists() and verbose:
+                with open(final_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                    word_count = len(content.split())
+                    
+                console.print(f"[cyan]📊 Final recap: {word_count} words[/cyan]")
+        
+        except Exception as e:
+            console.print(f"[red]❌ AI recap generation failed: {e}[/red]")
+            
+            if "Configuration error" in str(e):
+                console.print("\n[yellow]💡 Setup help:[/yellow]")
+                console.print("1. Get an OpenAI API key: https://platform.openai.com/")
+                console.print("2. Get a Perplexity API key: https://www.perplexity.ai/settings/api")
+                console.print("3. Set environment variables:")
+                console.print("   export OPENAI_API_KEY='your-key'")
+                console.print("   export PERPLEXITY_API_KEY='your-key'")
+            
+            if verbose:
+                raise
+            raise typer.Exit(1)
         
     except Exception as e:
-        console.print(f"[red]❌ Error during week recap export: {e}[/red]")
+        console.print(f"[red]❌ Error during week recap: {e}[/red]")
         if verbose:
             raise
         raise typer.Exit(1)
