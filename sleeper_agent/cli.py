@@ -92,33 +92,24 @@ class SleeperCLI:
         console.print("\n" + "="*50)
         console.print("[bold blue]📋 Main Menu[/bold blue]")
         console.print("="*50)
-        
+
         menu_table = Table(show_header=False, box=None, padding=(0, 2))
         menu_table.add_column("Option", style="bold cyan")
         menu_table.add_column("Description")
-        
-        menu_table.add_row("1", "draft-recap - Export latest draft to CSV")
-        menu_table.add_row("2", "team-preview - Export a team's roster to CSV")
-        menu_table.add_row("3", "week-matchups - Export weekly matchups to CSV")
-        menu_table.add_row("4", "week-recap - Generate AI-powered groupchat recap")
+
+        menu_table.add_row("1", "week-recap - Generate AI-powered groupchat recap")
         menu_table.add_row("q", "Quit")
-        
+
         console.print(menu_table)
         console.print("="*50)
-        
-        choice = Prompt.ask("\nSelect an option", choices=["1", "2", "3", "4", "q"])
-        
+
+        choice = Prompt.ask("\nSelect an option", choices=["1", "q"])
+
         if choice == "1":
-            return "draft-recap"
-        elif choice == "2":
-            return "team-preview"
-        elif choice == "3":
-            return "week-matchups"
-        elif choice == "4":
             return "week-recap"
         elif choice == "q":
             return "quit"
-        
+
         return None
     
     def draft_recap_flow(self) -> None:
@@ -430,14 +421,8 @@ class SleeperCLI:
             # Main loop
             while True:
                 choice = self.show_main_menu()
-                
-                if choice == "draft-recap":
-                    self.draft_recap_flow()
-                elif choice == "team-preview":
-                    self.team_preview_flow()
-                elif choice == "week-matchups":
-                    self.week_matchups_flow()
-                elif choice == "week-recap":
+
+                if choice == "week-recap":
                     self.week_recap_flow()
                 elif choice == "quit":
                     console.print("[blue]👋 Goodbye![/blue]")

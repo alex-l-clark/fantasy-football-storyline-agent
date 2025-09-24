@@ -1,231 +1,188 @@
-# Sleeper Fantasy Football CLI Agent
+# 🏈 Sleeper Fantasy Football Weekly Recap Generator
 
-A comprehensive command-line tool for analyzing and exporting Sleeper Fantasy Football league data. Built with Python, this tool provides easy access to draft recaps, team rosters, and weekly matchup analysis with comprehensive CSV exports.
+**Transform your fantasy football league into engaging stories with AI-powered weekly recaps!**
 
-## Features
+## What This Does
 
-### 🏈 Current Functionality
+This tool takes your Sleeper Fantasy Football league and automatically generates **comprehensive weekly recaps** that combine:
 
-- **Draft Recap**: Export complete draft analysis with pick-by-pick breakdown
-- **Team Preview**: Export detailed roster analysis for any league member  
-- **Week Matchups**: Export weekly head-to-head matchups with records and lineups
+- 📈 **Real Statistical Analysis** - Points scored, lineup decisions, waiver wire moves, and performance trends
+- 📰 **Current NFL Storylines** - Latest news, injuries, and developments affecting your players
+- 🎯 **Smart Commentary** - AI-powered insights that connect real NFL events to your fantasy outcomes
+- 📊 **Data-Driven Insights** - Advanced analytics on team performance, optimal lineups, and season trends
 
-### 📊 Export Formats
+Perfect for sharing in your league group chat, these recaps turn raw fantasy data into compelling narratives that make your league more engaging and fun!
 
-All data exports to CSV format with the following outputs:
-- `out/draft_{league_id}_{draft_id}.csv` - Complete draft recap
-- `out/roster_{league_id}_{username}_{timestamp}.csv` - Team roster export
-- `out/matchups_{league_id}_week{week}.csv` - Weekly matchup analysis
+## Key Features
 
-## Installation
+✨ **One-Click Weekly Recaps**: Simply enter your league ID and week number
+🔍 **Real NFL Research**: Automatically pulls in current storylines and player news
+📱 **Group Chat Ready**: Formatted for easy sharing in Discord, Slack, or text
+🎲 **Bench Analysis**: Covers not just starters, but key bench decisions and missed opportunities
+📈 **Season Context**: Tracks season-long trends and storylines
+🤖 **AI-Powered**: Uses advanced language models to create engaging, readable content
 
-### Prerequisites
+## Sample Output
 
+Your weekly recap will include sections like:
+
+- **Week Overview**: Key matchups and storylines
+- **Top Performances**: Highest scorers with context about their real NFL games
+- **Biggest Disappointments**: Poor performances explained with injury/game context
+- **Bench Decisions**: Critical sit/start choices that impacted outcomes
+- **Looking Ahead**: Preview of next week's key storylines
+
+Each section combines your league's actual data with real NFL context, creating recaps that are both informative and entertaining.
+
+## Requirements
+
+### API Keys (Required)
+
+To generate AI-powered recaps, you'll need two free API keys:
+
+1. **OpenAI API Key** (for AI analysis and writing)
+   - Sign up at: https://platform.openai.com/
+   - Cost: ~$1-3 per recap (depending on league size)
+
+2. **Perplexity API Key** (for real-time NFL research)
+   - Sign up at: https://www.perplexity.ai/settings/api
+   - Cost: ~$0.50-1 per recap
+
+### System Requirements
 - Python 3.11+
-- Sleeper Fantasy Football league access
+- Your Sleeper Fantasy Football league ID
 
-### Setup
+## Installation & Setup
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/alex-l-clark/fantasy-football-storyline-agent.git
-   cd fantasy-football-storyline-agent
-   ```
-
-2. **Create a virtual environment:**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Usage
-
-### Interactive CLI
-
-Start the interactive command-line interface:
+### Step 1: Download the Software
 
 ```bash
-python -m sleeper_agent.cli
+# Download the project
+git clone https://github.com/alex-l-clark/fantasy-football-storyline-agent.git
+cd fantasy-football-storyline-agent
 ```
 
-The CLI will guide you through:
-
-1. **League Setup**: Enter your Sleeper league ID (cached for future use)
-2. **Menu Selection**: Choose from available analysis options
-3. **Data Export**: Automatic CSV generation with progress indicators
-
-### Menu Options
-
-#### 1. Draft Recap
-- Exports complete draft analysis
-- Includes player info, team names, and pick details
-- Shows draft summary and first 5 picks preview
-
-#### 2. Team Preview  
-- Select any league member
-- Exports their complete roster
-- Shows player positions, NFL teams, and roster status
-
-#### 3. Week Matchups ⭐ *New Feature*
-- Enter NFL week number (1-18)
-- Exports all league matchups for that week
-- Includes both teams' records through the previous week
-- Shows complete starting lineups
-- Handles bye weeks automatically
-
-### Week Matchups CSV Schema
-
-The matchups export includes 18 columns with comprehensive head-to-head data:
-
-```
-league_id, week, matchup_id,
-side_a_roster_id, side_a_username, side_a_display_name, side_a_team_name, 
-side_a_record_pre, side_a_projected_points, side_a_actual_points, side_a_starters,
-side_b_roster_id, side_b_username, side_b_display_name, side_b_team_name,
-side_b_record_pre, side_b_projected_points, side_b_actual_points, side_b_starters
-```
-
-**Key Features:**
-- **Deterministic Side Assignment**: Lower roster_id = Side A, Higher = Side B
-- **Accurate Records**: Calculated by comparing actual points from previous weeks
-- **Formatted Starters**: "Player Name (POS, NFL)" separated by semicolons
-- **Bye Week Support**: Single-team matchups with empty Side B fields
-- **Missing Data Handling**: Graceful handling of pre-game and missing data
-
-## Configuration
-
-### League ID Caching
-
-The CLI automatically caches your league ID in `~/.sleeper_agent/config.json` for convenience. You can:
-- Use cached league ID on startup
-- Override with a new league ID anytime
-- Validation ensures league access before proceeding
-
-### Output Directory
-
-All CSV exports are saved to the `out/` directory in your project folder. The directory is created automatically if it doesn't exist.
-
-### Player Data Cache
-
-Player information is cached locally in `~/.sleeper_agent/cache/players_2025.json`:
-- Refreshed automatically if older than 7 days
-- Contains all NFL player data with positions and teams
-- Improves performance for repeated exports
-
-## Development
-
-### Project Structure
-
-```
-sleeper_agent/
-├── __init__.py
-├── __main__.py
-├── cli.py              # Main CLI application
-├── config.py           # Configuration management
-├── models/             # Pydantic data models
-│   ├── draft.py
-│   ├── league.py
-│   ├── matchup.py     # New matchup model
-│   ├── player.py
-│   ├── roster.py
-│   └── user.py
-├── services/           # Business logic services
-│   ├── api.py         # Sleeper API client
-│   ├── drafts.py      # Draft analysis
-│   ├── leagues.py     # League data management
-│   ├── matchups.py    # New matchups service
-│   └── players.py     # Player data cache
-├── io/                 # Input/output utilities
-│   ├── csv_export.py  # CSV export functionality
-│   └── files.py       # File management
-└── tests/             # Comprehensive test suite
-    ├── test_cli.py
-    ├── test_matchups.py  # New matchups tests
-    └── test_models.py
-```
-
-### Dependencies
-
-- **httpx**: Async HTTP client for Sleeper API
-- **pandas**: Data manipulation and CSV export
-- **typer**: Command-line interface framework  
-- **pydantic**: Data validation and serialization
-- **rich**: Beautiful terminal output
-- **tenacity**: Retry logic for API calls
-
-### Running Tests
+### Step 2: Set Up Python Environment
 
 ```bash
-# Run all tests
-python -m pytest
+# Create a virtual environment
+python -m venv venv
 
-# Run specific test module
-python -m pytest sleeper_agent/tests/test_matchups.py
+# Activate it (Mac/Linux)
+source venv/bin/activate
 
-# Run with verbose output
-python -m pytest -v
+# Activate it (Windows)
+venv\Scripts\activate
+
+# Install the software
+pip install -r requirements.txt
 ```
 
-### Code Style
+### Step 3: Configure Your API Keys
 
-This project follows:
-- **PEP 8**: Python style guide
-- **Type hints**: Full type annotation coverage
-- **Docstrings**: Comprehensive function documentation
-- **Small focused modules**: Single responsibility principle
-- **Error handling**: Graceful failure with user-friendly messages
+You'll need to set up your API keys as environment variables:
 
-## API Integration
+**Option A: Create a .env file (Recommended for beginners)**
+1. Copy the example file: `cp .env.example .env`
+2. Edit the `.env` file and add your keys:
+   ```
+   OPENAI_API_KEY=your_openai_key_here
+   PERPLEXITY_API_KEY=your_perplexity_key_here
+   ```
 
-Uses the official [Sleeper API](https://docs.sleeper.com/) endpoints:
+**Option B: Set environment variables directly**
+```bash
+# Mac/Linux
+export OPENAI_API_KEY="your_openai_key_here"
+export PERPLEXITY_API_KEY="your_perplexity_key_here"
 
-- `GET /v1/league/{league_id}` - League information
-- `GET /v1/league/{league_id}/users` - League members  
-- `GET /v1/league/{league_id}/rosters` - Team rosters
-- `GET /v1/league/{league_id}/drafts` - Draft information
-- `GET /v1/draft/{draft_id}/picks` - Draft picks
-- `GET /v1/league/{league_id}/matchups/{week}` - Weekly matchups ⭐ *New*
-- `GET /v1/players/nfl` - NFL player database
+# Windows
+set OPENAI_API_KEY=your_openai_key_here
+set PERPLEXITY_API_KEY=your_perplexity_key_here
+```
 
-### Rate Limiting & Reliability
+## How to Use
 
-- **Automatic retries** with exponential backoff
-- **Request timeout** handling (30 seconds)
-- **Connection pooling** for performance
-- **Error recovery** with user-friendly messages
+### Finding Your League ID
 
-## Contributing
+1. Go to your Sleeper league in a web browser
+2. Look at the URL: `https://sleeper.app/leagues/XXXXXXXXX/team`
+3. The number in the middle (XXXXXXXXX) is your league ID
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass (`python -m pytest`)
-6. Commit your changes (`git commit -m 'Add amazing feature'`)
-7. Push to the branch (`git push origin feature/amazing-feature`)
-8. Open a Pull Request
+### Running the Recap Generator
 
-## License
+1. **Start the program:**
+   ```bash
+   python -m sleeper_agent.cli
+   ```
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+2. **Enter your league ID** when prompted (it will be saved for future use)
 
-## Acknowledgments
+3. **Select "week-recap"** from the menu
 
-- Built for the Sleeper Fantasy Football platform
-- Uses the official Sleeper API
-- Inspired by the need for better fantasy football analysis tools
+4. **Choose which NFL week** you want to recap (1-18)
+
+5. **Wait 2-5 minutes** while the AI:
+   - Analyzes your league's data for that week
+   - Researches current NFL storylines
+   - Generates comprehensive recap content
+
+6. **Get your recap!** The finished file will be saved and you can copy/paste it into your group chat
+
+### Advanced Usage
+
+You can also run recaps directly from the command line:
+
+```bash
+# Generate recap for week 5
+python -m sleeper_agent.cli week-recap --week 5 --league-id YOUR_LEAGUE_ID
+
+# Force regeneration (ignore any cached data)
+python -m sleeper_agent.cli week-recap --week 5 --force
+```
+
+## Cost Information
+
+**Typical costs per recap:**
+- OpenAI (GPT-4): $1-3 depending on league size and complexity
+- Perplexity: $0.50-1 for research queries
+- **Total: ~$1.50-4 per recap**
+
+Costs scale with:
+- Number of teams in your league
+- Amount of detailed analysis requested
+- Length of generated content
+
+## Troubleshooting
+
+### "Configuration error" messages
+- Double-check your API keys are set correctly
+- Make sure you have credits in both OpenAI and Perplexity accounts
+- Verify the keys aren't expired
+
+### "No league data found"
+- Confirm your league ID is correct
+- Make sure the league is public or you have access
+- Try a different week number
+
+### Python/Installation issues
+- Ensure you're using Python 3.11 or newer: `python --version`
+- Make sure your virtual environment is activated
+- Try reinstalling: `pip install -r requirements.txt --force-reinstall`
+
+## Privacy & Data
+
+- Your league data is processed temporarily to generate recaps
+- No league data is stored permanently
+- API keys are only used for generating your content
+- All data stays on your local machine
 
 ## Support
 
-For questions, issues, or feature requests:
-- Open an [issue on GitHub](https://github.com/alex-l-clark/fantasy-football-storyline-agent/issues)
-- Check the [Sleeper API documentation](https://docs.sleeper.com/) for API-related questions
+Need help?
+- Check the troubleshooting section above
+- Open an issue on GitHub: https://github.com/alex-l-clark/fantasy-football-storyline-agent/issues
 
 ---
 
-**Happy analyzing! 🏈📊**
+**Ready to make your fantasy league more engaging? Get started above! 🏈🤖**
