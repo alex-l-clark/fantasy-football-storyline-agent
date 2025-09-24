@@ -144,7 +144,7 @@ python -m sleeper_agent.cli week-recap --week 5 --force
 ## Cost Information
 
 **Typical costs per recap:**
-- OpenAI (GPT-4): $1-3 depending on league size and complexity
+- OpenAI (GPT-5): $1-3 depending on league size and complexity
 - Perplexity: $0.50-1 for research queries
 - **Total: ~$1.50-4 per recap**
 
